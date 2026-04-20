@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FF Tournament - Free Fire Tournament Platform</title>
+  <meta name="description" content="Join Free Fire tournaments, compete and win prizes!">
+  <meta name="theme-color" content="#ff6600">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- AUTH PAGE -->
+<div id="auth-page" class="auth-page">
+  <div class="auth-box">
+    <h1>🔥 FF <span style="color:var(--secondary)">TOURNAMENT</span></h1>
+    <p class="subtitle">Free Fire Tournament Platform</p>
+    
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="showAuthTab('login')">LOGIN</div>
+      <div class="auth-tab" onclick="showAuthTab('register')">REGISTER</div>
+    </div>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email / Phone / Username</label>
+        <input type="text" id="login-input" class="form-control" placeholder="Enter email, phone or username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" class="form-control" placeholder="Enter password">
+      </div>
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <button class="btn btn-primary btn-block" onclick="doLogin()">LOGIN</button>
+    </div>
+
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label>Username *</label>
+        <input type="text" id="reg-username" class="form-control" placeholder="Choose a username">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" class="form-control" placeholder="Your email address">
+      </div>
+      <div class="form-group">
+        <label>Phone Number</label>
+        <input type="tel" id="reg-phone" class="form-control" placeholder="Your phone number">
+      </div>
+      <div class="form-group">
+        <label>Free Fire UID</label>
+        <input type="text" id="reg-ffuid" class="form-control" placeholder="Your Free Fire UID">
+      </div>
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" id="reg-password" class="form-control" placeholder="Create a password">
+      </div>
+      <div id="register-error" class="alert alert-error" style="display:none"></div>
+      <div id="register-success" class="alert alert-success" style="display:none"></div>
+      <button class="btn btn-primary btn-block" onclick="doRegister()">REGISTER</button>
+    </div>
+
+    <div style="text-align:center;margin-top:15px">
+      <a href="#" onclick="showAdminLogin()" style="color:var(--text-muted);font-size:0.85rem">Admin Login →</a>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-page" style="display:none">
+  <nav class="navbar">
+    <div class="container">
+      <div class="logo">🔥 FF <span>TOURNAMENT</span></div>
+      <div class="nav-links">
+        <a href="#" class="active" onclick="showPage('home')">Home</a>
+        <a href="#" onclick="showPage('matches')">Matches</a>
+        <a href="#" onclick="showPage('my-matches')">My Matches</a>
+        <a href="#" onclick="showPage('profile')">Profile</a>
+        <button onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HOME -->
+  <div id="page-home">
+    <div class="hero">
+      <h1>WELCOME TO <span class="highlight">FF TOURNAMENT</span></h1>
+      <p>Join tournaments, compete with the best, and win amazing prizes!</p>
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-value" id="stat-matches">0</div>
+          <div class="stat-label">Active Matches</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="stat-players">0</div>
+          <div class="stat-label">Players</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="stat-prize">₹0</div>
+          <div class="stat-label">Total Prizes</div>
+        </div>
+      </div>
+    </div>
+    <div class="container section">
+      <div class="section-title"><h2>Upcoming Matches</h2></div>
+      <div id="home-matches" class="match-grid"></div>
+    </div>
+  </div>
+
+  <!-- MATCHES -->
+  <div id="page-matches" style="display:none">
+    <div class="container section">
+      <div class="section-title">
+        <h2>All Matches</h2>
+        <select class="form-control" style="width:auto" onchange="filterMatches(this.value)">
+          <option value="all">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="live">Live</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div id="all-matches" class="match-grid"></div>
+    </div>
+  </div>
+
+  <!-- MY MATCHES -->
+  <div id="page-my-matches" style="display:none">
+    <div class="container section">
+      <div class="section-title"><h2>My Matches</h2></div>
+      <div id="my-matches-list"></div>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="page-profile" style="display:none">
+    <div class="container section">
+      <div class="section-title"><h2>My Profile</h2></div>
+      <div class="card">
+        <div id="profile-info"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>🔥 FF Tournament Platform | Support: <a href="mailto:vt158376@gmail.com">vt158376@gmail.com</a></p>
+    <p style="margin-top:5px">© 2026 FF Tournament. All rights reserved.</p>
+  </footer>
+</div>
+
+<!-- ADMIN PAGE -->
+<div id="admin-page" style="display:none">
+  <nav class="navbar">
+    <div class="container">
+      <div class="logo">🔥 FF <span>ADMIN</span></div>
+      <div class="nav-links">
+        <span style="color:var(--success)">● Admin Panel</span>
+        <button onclick="adminLogout()">Logout</button>
+      </div>
+    </div>
+  </nav>
+  <div class="container section">
+    <div class="admin-tabs">
+      <div class="admin-tab active" onclick="showAdminTab('admin-matches')">Matches</div>
+      <div class="admin-tab" onclick="showAdminTab('admin-payments')">Payments</div>
+      <div class="admin-tab" onclick="showAdminTab('admin-users')">Users</div>
+      <div class="admin-tab" onclick="showAdminTab('admin-results')">Results</div>
+    </div>
+
+    <!-- Admin Matches -->
+    <div id="admin-matches">
+      <div class="section-title">
+        <h2>Manage Matches</h2>
+        <button class="btn btn-primary btn-sm" onclick="showCreateMatch()">+ New Match</button>
+      </div>
+      <div id="admin-matches-list"></div>
+    </div>
+
+    <!-- Admin Payments -->
+    <div id="admin-payments" style="display:none">
+      <div class="section-title"><h2>Payment Verification</h2></div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr><th>Player</th><th>Match</th><th>Amount</th><th>UTR</th><th>Screenshot</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="admin-payments-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin Users -->
+    <div id="admin-users" style="display:none">
+      <div class="section-title"><h2>Manage Users</h2></div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr><th>Username</th><th>Email</th><th>Phone</th><th>FF UID</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="admin-users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admin Results -->
+    <div id="admin-results" style="display:none">
+      <div class="section-title"><h2>Declare Results</h2></div>
+      <div class="form-group">
+        <label>Select Match</label>
+        <select id="result-match-select" class="form-control" onchange="loadMatchPlayers()">
+          <option value="">-- Select Match --</option>
+        </select>
+      </div>
+      <div id="result-players-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Payment Modal -->
+<div class="modal-overlay" id="payment-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('payment-modal')">&times;</button>
+    <h2>💰 Make Payment</h2>
+    <div class="qr-container">
+      <p>Scan QR or pay to UPI ID:</p>
+      <div class="upi-id-display" id="modal-upi-id">7762067909@ibl</div>
+      <img id="qr-code-img" src="" alt="QR Code">
+      <p style="color:var(--warning);margin-top:10px">Amount: ₹<span id="modal-amount">0</span></p>
+    </div>
+    <div class="form-group">
+      <label>UTR Number *</label>
+      <input type="text" id="payment-utr" class="form-control" placeholder="Enter UTR/Transaction ID">
+    </div>
+    <div class="form-group">
+      <label>Payment Screenshot *</label>
+      <input type="file" id="payment-screenshot" class="form-control" accept="image/*">
+    </div>
+    <div id="payment-error" class="alert alert-error" style="display:none"></div>
+    <button class="btn btn-primary btn-block" onclick="submitPayment()">Submit Payment</button>
+  </div>
+</div>
+
+<!-- Create/Edit Match Modal -->
+<div class="modal-overlay" id="match-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('match-modal')">&times;</button>
+    <h2 id="match-modal-title">Create New Match</h2>
+    <input type="hidden" id="edit-match-id">
+    <div class="form-group">
+      <label>Match Title *</label>
+      <input type="text" id="match-title" class="form-control" placeholder="e.g. Solo Battle Royale #1">
+    </div>
+    <div class="form-group">
+      <label>Game Mode</label>
+      <select id="match-mode" class="form-control">
+        <option>Battle Royale</option>
+        <option>Clash Squad</option>
+        <option>Lone Wolf</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Map</label>
+      <select id="match-map" class="form-control">
+        <option>Bermuda</option>
+        <option>Kalahari</option>
+        <option>Purgatory</option>
+        <option>Alpine</option>
+        <option>Nexterra</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Entry Fee (₹)</label>
+      <input type="number" id="match-fee" class="form-control" value="0" min="0">
+    </div>
+    <div class="form-group">
+      <label>Prize Pool (₹)</label>
+      <input type="number" id="match-prize" class="form-control" value="0" min="0">
+    </div>
+    <div class="form-group">
+      <label>Max Players</label>
+      <input type="number" id="match-maxplayers" class="form-control" value="48" min="2">
+    </div>
+    <div class="form-group">
+      <label>Match Date & Time *</label>
+      <input type="datetime-local" id="match-time" class="form-control">
+    </div>
+    <div class="form-group">
+      <label>Room ID</label>
+      <input type="text" id="match-roomid" class="form-control" placeholder="Room ID (visible to approved players only)">
+    </div>
+    <div class="form-group">
+      <label>Room Password</label>
+      <input type="text" id="match-roompw" class="form-control" placeholder="Room Password">
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="match-status" class="form-control">
+        <option value="upcoming">Upcoming</option>
+        <option value="live">Live</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveMatch()">Save Match</button>
+  </div>
+</div>
+
+<!-- Match Detail Modal -->
+<div class="modal-overlay" id="match-detail-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('match-detail-modal')">&times;</button>
+    <div id="match-detail-content"></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

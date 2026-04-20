@@ -1,0 +1,5 @@
+node_modules/
+tournament.db
+public/uploads/*
+!public/uploads/.gitkeep
+.env

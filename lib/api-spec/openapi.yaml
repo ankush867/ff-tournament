@@ -1,0 +1,688 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Free Fire Tournament API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: matches
+    description: Tournament match operations
+  - name: registrations
+    description: Player registrations
+  - name: admin
+    description: Admin operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: registerPlayer
+      tags: [auth]
+      summary: Register new player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPlayerBody"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginPlayer
+      tags: [auth]
+      summary: Login player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current player profile
+      responses:
+        "200":
+          description: Player profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Player"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /matches:
+    get:
+      operationId: listMatches
+      tags: [matches]
+      summary: List all matches
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [solo, duo, squad]
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [upcoming, live, completed]
+      responses:
+        "200":
+          description: Matches list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+
+    post:
+      operationId: createMatch
+      tags: [matches]
+      summary: Create a new match (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMatchBody"
+      responses:
+        "201":
+          description: Match created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /matches/{id}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      operationId: updateMatch
+      tags: [matches]
+      summary: Update match (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMatchBody"
+      responses:
+        "200":
+          description: Match updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteMatch
+      tags: [matches]
+      summary: Delete match (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /matches/{id}/register:
+    post:
+      operationId: registerForMatch
+      tags: [registrations]
+      summary: Register for a match
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterForMatchBody"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /matches/{id}/registrations:
+    get:
+      operationId: getMatchRegistrations
+      tags: [registrations]
+      summary: Get registrations for a match
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Registrations list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Registration"
+
+  /my-registrations:
+    get:
+      operationId: getMyRegistrations
+      tags: [registrations]
+      summary: Get current player's registrations
+      responses:
+        "200":
+          description: My registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RegistrationWithMatch"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [matches]
+      summary: Get overall tournament stats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TournamentStats"
+
+  /admin/registrations:
+    get:
+      operationId: listAllRegistrations
+      tags: [admin]
+      summary: List all registrations (admin only)
+      responses:
+        "200":
+          description: All registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminRegistration"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/registrations/{id}/confirm:
+    patch:
+      operationId: confirmRegistration
+      tags: [admin]
+      summary: Confirm a player's registration payment (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    Player:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        gameId:
+          type: string
+        isAdmin:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+        - gameId
+        - isAdmin
+        - createdAt
+
+    RegisterPlayerBody:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        gameId:
+          type: string
+      required:
+        - username
+        - email
+        - password
+        - gameId
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        player:
+          $ref: "#/components/schemas/Player"
+      required:
+        - token
+        - player
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+          enum: [solo, duo, squad]
+        status:
+          type: string
+          enum: [upcoming, live, completed]
+        scheduledAt:
+          type: string
+          format: date-time
+        entryFee:
+          type: integer
+        maxPlayers:
+          type: integer
+        registeredCount:
+          type: integer
+        roomId:
+          type: string
+          nullable: true
+        roomPassword:
+          type: string
+          nullable: true
+        prizePool:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - type
+        - status
+        - scheduledAt
+        - entryFee
+        - maxPlayers
+        - registeredCount
+        - createdAt
+
+    MatchDetail:
+      allOf:
+        - $ref: "#/components/schemas/Match"
+        - type: object
+          properties:
+            registrations:
+              type: array
+              items:
+                $ref: "#/components/schemas/Registration"
+          required:
+            - registrations
+
+    CreateMatchBody:
+      type: object
+      properties:
+        title:
+          type: string
+        type:
+          type: string
+          enum: [solo, duo, squad]
+        scheduledAt:
+          type: string
+          format: date-time
+        maxPlayers:
+          type: integer
+        roomId:
+          type: string
+          nullable: true
+        roomPassword:
+          type: string
+          nullable: true
+        prizePool:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+      required:
+        - title
+        - type
+        - scheduledAt
+        - maxPlayers
+
+    UpdateMatchBody:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+          enum: [upcoming, live, completed]
+        scheduledAt:
+          type: string
+          format: date-time
+        roomId:
+          type: string
+          nullable: true
+        roomPassword:
+          type: string
+          nullable: true
+        prizePool:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+
+    Registration:
+      type: object
+      properties:
+        id:
+          type: integer
+        matchId:
+          type: integer
+        playerId:
+          type: integer
+        playerUsername:
+          type: string
+        playerGameId:
+          type: string
+        teamName:
+          type: string
+          nullable: true
+        paymentStatus:
+          type: string
+          enum: [pending, confirmed]
+        registeredAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - matchId
+        - playerId
+        - playerUsername
+        - playerGameId
+        - paymentStatus
+        - registeredAt
+
+    RegisterForMatchBody:
+      type: object
+      properties:
+        teamName:
+          type: string
+          nullable: true
+      required: []
+
+    RegistrationWithMatch:
+      allOf:
+        - $ref: "#/components/schemas/Registration"
+        - type: object
+          properties:
+            match:
+              $ref: "#/components/schemas/Match"
+          required:
+            - match
+
+    AdminRegistration:
+      allOf:
+        - $ref: "#/components/schemas/Registration"
+        - type: object
+          properties:
+            match:
+              $ref: "#/components/schemas/Match"
+          required:
+            - match
+
+    TournamentStats:
+      type: object
+      properties:
+        totalMatches:
+          type: integer
+        upcomingMatches:
+          type: integer
+        liveMatches:
+          type: integer
+        completedMatches:
+          type: integer
+        totalPlayers:
+          type: integer
+        totalRegistrations:
+          type: integer
+        soloMatches:
+          type: integer
+        duoMatches:
+          type: integer
+        squadMatches:
+          type: integer
+      required:
+        - totalMatches
+        - upcomingMatches
+        - liveMatches
+        - completedMatches
+        - totalPlayers
+        - totalRegistrations
+        - soloMatches
+        - duoMatches
+        - squadMatches

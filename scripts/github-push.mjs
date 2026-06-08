@@ -7,16 +7,8 @@ const REPO = "ff-tournament";
 const BRANCH = "main";
 const ROOT = "/home/runner/workspace";
 
-// Top-level dirs/files to completely skip
-const SKIP_TOP_LEVEL = new Set([".local", ".cache", ".config", ".npm"]);
-
-// Dir names to skip anywhere in tree
-const SKIP_DIRS = new Set([
-  "node_modules", ".git", "dist", ".turbo", ".cache",
-  "coverage", "__pycache__", ".tsbuildinfo",
-]);
-
-// File extensions to skip
+const SKIP_TOP_LEVEL = new Set([".local", ".cache", ".config", ".npm", ".upm"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", ".cache", "coverage", "__pycache__"]);
 const SKIP_EXT = new Set([".map", ".tsbuildinfo"]);
 
 const headers = {
@@ -31,9 +23,8 @@ function getAllFiles(dir, rel = "") {
   const files = [];
   for (const entry of entries) {
     const entryRel = rel ? `${rel}/${entry.name}` : entry.name;
-    // Skip top-level hidden/system dirs
     if (!rel && SKIP_TOP_LEVEL.has(entry.name)) continue;
-    if (entry.name.startsWith(".") && !rel && entry.name !== ".gitignore" && entry.name !== ".env.example") continue;
+    if (!rel && entry.name.startsWith(".") && !["gitignore", "env.example"].includes(entry.name.replace(".", ""))) continue;
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
       files.push(...getAllFiles(path.join(dir, entry.name), entryRel));
@@ -42,56 +33,41 @@ function getAllFiles(dir, rel = "") {
       if (SKIP_EXT.has(ext)) continue;
       if (entry.name.endsWith(".tsbuildinfo")) continue;
       const stat = fs.statSync(path.join(dir, entry.name));
-      if (stat.size > 2 * 1024 * 1024) continue; // skip > 2MB
+      if (stat.size > 2 * 1024 * 1024) continue;
       files.push(entryRel);
     }
   }
   return files;
 }
 
-async function apiGet(url) {
-  const res = await fetch(url, { headers });
+async function api(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers,
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
   return { status: res.status, data: await res.json() };
 }
 
-async function apiPost(url, body) {
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
-  return { status: res.status, data: await res.json() };
-}
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function apiPatch(url, body) {
-  const res = await fetch(url, { method: "PATCH", headers, body: JSON.stringify(body) });
-  return { status: res.status, data: await res.json() };
-}
-
-async function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-async function createBlobWithRetry(relPath, fullPath) {
-  let content, encoding;
+async function createBlob(relPath, fullPath) {
   const raw = fs.readFileSync(fullPath);
   const isBinary = raw.includes(0);
-  if (isBinary) {
-    content = raw.toString("base64");
-    encoding = "base64";
-  } else {
-    content = raw.toString("utf8");
-    encoding = "utf-8";
-  }
+  const content = isBinary ? raw.toString("base64") : raw.toString("utf8");
+  const encoding = isBinary ? "base64" : "utf-8";
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { status, data } = await apiPost(
+  for (let i = 0; i < 3; i++) {
+    const { status, data } = await api("POST",
       `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs`,
       { content, encoding }
     );
     if (status === 201) return data.sha;
-    if (status === 429 || (data.message && data.message.includes("rate limit"))) {
-      console.log(`  ⏳ Rate limited, waiting 15s...`);
-      await sleep(15000);
+    if (status === 429 || data.message?.includes("rate limit")) {
+      console.log("  ⏳ Rate limited, waiting 20s...");
+      await sleep(20000);
       continue;
     }
-    console.warn(`  ⚠ Blob failed [${status}] ${relPath}: ${data.message}`);
     return null;
   }
   return null;
@@ -100,86 +76,63 @@ async function createBlobWithRetry(relPath, fullPath) {
 async function main() {
   console.log(`🚀 Uploading to github.com/${OWNER}/${REPO}`);
 
-  const { data: refData, status: refStatus } = await apiGet(
+  const { data: refData, status: refStatus } = await api("GET",
     `https://api.github.com/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`
   );
 
-  let baseTreeSha = null;
-  let parentSha = null;
-
+  let baseTreeSha = null, parentSha = null;
   if (refStatus === 200) {
     parentSha = refData.object.sha;
-    const { data: commitData } = await apiGet(
+    const { data: c } = await api("GET",
       `https://api.github.com/repos/${OWNER}/${REPO}/git/commits/${parentSha}`
     );
-    baseTreeSha = commitData.tree.sha;
-    console.log("✓ Existing branch found");
+    baseTreeSha = c.tree.sha;
+    console.log("✓ Branch found");
   }
 
   const files = getAllFiles(ROOT);
-  console.log(`📁 ${files.length} files to upload (project files only)\n`);
+  console.log(`📁 ${files.length} files to upload\n`);
 
   const treeItems = [];
   let done = 0;
 
   for (const relPath of files) {
-    const fullPath = path.join(ROOT, relPath);
-    const sha = await createBlobWithRetry(relPath, fullPath);
-    if (sha) {
-      treeItems.push({ path: relPath, mode: "100644", type: "blob", sha });
-    }
+    const sha = await createBlob(relPath, path.join(ROOT, relPath));
+    if (sha) treeItems.push({ path: relPath, mode: "100644", type: "blob", sha });
     done++;
-    if (done % 50 === 0) {
-      process.stdout.write(`  ${done}/${files.length} files...\r`);
-    }
-    // Small delay to avoid rate limits
-    await sleep(50);
+    if (done % 50 === 0) process.stdout.write(`  ${done}/${files.length}...\r`);
+    await sleep(60);
   }
 
-  console.log(`\n✓ ${treeItems.length} blobs created`);
+  console.log(`\n✓ ${treeItems.length} blobs uploaded`);
 
   const treeBody = { tree: treeItems };
   if (baseTreeSha) treeBody.base_tree = baseTreeSha;
 
-  const { status: treeStatus, data: treeData } = await apiPost(
-    `https://api.github.com/repos/${OWNER}/${REPO}/git/trees`,
-    treeBody
+  const { status: ts, data: td } = await api("POST",
+    `https://api.github.com/repos/${OWNER}/${REPO}/git/trees`, treeBody
   );
-
-  if (treeStatus !== 201) {
-    console.error("❌ Tree failed:", JSON.stringify(treeData));
-    process.exit(1);
-  }
+  if (ts !== 201) { console.error("❌ Tree failed:", td.message); process.exit(1); }
   console.log("✓ Tree created");
 
-  const { status: commitStatus, data: commitData } = await apiPost(
+  const { status: cs, data: cd } = await api("POST",
     `https://api.github.com/repos/${OWNER}/${REPO}/git/commits`,
     {
-      message: "feat: Free Fire Tournament website - complete project",
-      tree: treeData.sha,
+      message: "deploy: add Render config, Neon DB support, production build setup",
+      tree: td.sha,
       ...(parentSha ? { parents: [parentSha] } : {}),
       author: { name: "FF Tourney", email: "bot@fftourney.com", date: new Date().toISOString() },
     }
   );
-
-  if (commitStatus !== 201) {
-    console.error("❌ Commit failed:", JSON.stringify(commitData));
-    process.exit(1);
-  }
-  console.log("✓ Commit created:", commitData.sha);
+  if (cs !== 201) { console.error("❌ Commit failed:", cd.message); process.exit(1); }
+  console.log("✓ Commit:", cd.sha);
 
   const refUrl = `https://api.github.com/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`;
-  const refResult = parentSha
-    ? await apiPatch(refUrl, { sha: commitData.sha, force: true })
-    : await apiPost(`https://api.github.com/repos/${OWNER}/${REPO}/git/refs`, {
-        ref: `refs/heads/${BRANCH}`,
-        sha: commitData.sha,
-      });
+  const r = parentSha
+    ? await api("PATCH", refUrl, { sha: cd.sha, force: true })
+    : await api("POST", `https://api.github.com/repos/${OWNER}/${REPO}/git/refs`, { ref: `refs/heads/${BRANCH}`, sha: cd.sha });
 
-  if (refResult.status >= 400) {
-    console.error("❌ Ref update failed:", JSON.stringify(refResult.data));
-    process.exit(1);
-  }
+  if (r.status >= 400) { console.error("❌ Ref failed:", r.data.message); process.exit(1); }
 
   console.log(`\n✅ Done! → https://github.com/${OWNER}/${REPO}`);
 }

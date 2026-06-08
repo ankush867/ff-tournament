@@ -2,7 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === "production";
 const port = process.env.PORT ? Number(process.env.PORT) : 5173;
 const basePath = process.env.BASE_PATH ?? "/";
@@ -20,7 +22,7 @@ export default defineConfig(async () => {
       const { cartographer } = await import("@replit/vite-plugin-cartographer");
       const { devBanner } = await import("@replit/vite-plugin-dev-banner");
       plugins.push(
-        cartographer({ root: path.resolve(import.meta.dirname, "..") }),
+        cartographer({ root: path.resolve(__dirname, "..") }),
         devBanner(),
       );
     }
@@ -31,19 +33,14 @@ export default defineConfig(async () => {
     plugins,
     resolve: {
       alias: {
-        "@": path.resolve(import.meta.dirname, "src"),
-        "@assets": path.resolve(
-          import.meta.dirname,
-          "..",
-          "..",
-          "attached_assets",
-        ),
+        "@": path.resolve(__dirname, "src"),
+        "@assets": path.resolve(__dirname, "..", "..", "attached_assets"),
       },
       dedupe: ["react", "react-dom"],
     },
-    root: path.resolve(import.meta.dirname),
+    root: __dirname,
     build: {
-      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      outDir: path.resolve(__dirname, "dist/public"),
       emptyOutDir: true,
     },
     server: {

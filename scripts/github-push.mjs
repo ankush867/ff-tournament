@@ -8,7 +8,7 @@ const BRANCH = "main";
 const ROOT = "/home/runner/workspace";
 
 const SKIP_TOP_LEVEL = new Set([".local", ".cache", ".config", ".npm", ".upm"]);
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", ".cache", "coverage", "__pycache__"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".turbo", ".cache", "coverage"]);
 const SKIP_EXT = new Set([".map", ".tsbuildinfo"]);
 
 const headers = {
@@ -24,13 +24,12 @@ function getAllFiles(dir, rel = "") {
   for (const entry of entries) {
     const entryRel = rel ? `${rel}/${entry.name}` : entry.name;
     if (!rel && SKIP_TOP_LEVEL.has(entry.name)) continue;
-    if (!rel && entry.name.startsWith(".") && !["gitignore", "env.example"].includes(entry.name.replace(".", ""))) continue;
+    if (!rel && entry.name.startsWith(".") && entry.name !== ".gitignore") continue;
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
       files.push(...getAllFiles(path.join(dir, entry.name), entryRel));
     } else {
-      const ext = path.extname(entry.name);
-      if (SKIP_EXT.has(ext)) continue;
+      if (SKIP_EXT.has(path.extname(entry.name))) continue;
       if (entry.name.endsWith(".tsbuildinfo")) continue;
       const stat = fs.statSync(path.join(dir, entry.name));
       if (stat.size > 2 * 1024 * 1024) continue;
@@ -53,14 +52,11 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function createBlob(relPath, fullPath) {
   const raw = fs.readFileSync(fullPath);
-  const isBinary = raw.includes(0);
-  const content = isBinary ? raw.toString("base64") : raw.toString("utf8");
-  const encoding = isBinary ? "base64" : "utf-8";
-
+  const content = raw.toString("base64");
   for (let i = 0; i < 3; i++) {
     const { status, data } = await api("POST",
       `https://api.github.com/repos/${OWNER}/${REPO}/git/blobs`,
-      { content, encoding }
+      { content, encoding: "base64" }
     );
     if (status === 201) return data.sha;
     if (status === 429 || data.message?.includes("rate limit")) {
@@ -68,6 +64,7 @@ async function createBlob(relPath, fullPath) {
       await sleep(20000);
       continue;
     }
+    console.warn(`  ⚠ Blob failed (${status}) for ${relPath}: ${data.message}`);
     return null;
   }
   return null;
@@ -87,7 +84,6 @@ async function main() {
       `https://api.github.com/repos/${OWNER}/${REPO}/git/commits/${parentSha}`
     );
     baseTreeSha = c.tree.sha;
-    console.log("✓ Branch found");
   }
 
   const files = getAllFiles(ROOT);
@@ -95,7 +91,6 @@ async function main() {
 
   const treeItems = [];
   let done = 0;
-
   for (const relPath of files) {
     const sha = await createBlob(relPath, path.join(ROOT, relPath));
     if (sha) treeItems.push({ path: relPath, mode: "100644", type: "blob", sha });
@@ -113,12 +108,11 @@ async function main() {
     `https://api.github.com/repos/${OWNER}/${REPO}/git/trees`, treeBody
   );
   if (ts !== 201) { console.error("❌ Tree failed:", td.message); process.exit(1); }
-  console.log("✓ Tree created");
 
   const { status: cs, data: cd } = await api("POST",
     `https://api.github.com/repos/${OWNER}/${REPO}/git/commits`,
     {
-      message: "deploy: add Render config, Neon DB support, production build setup",
+      message: "fix: vite config async, add packageManager, simplify render build",
       tree: td.sha,
       ...(parentSha ? { parents: [parentSha] } : {}),
       author: { name: "FF Tourney", email: "bot@fftourney.com", date: new Date().toISOString() },
@@ -127,14 +121,15 @@ async function main() {
   if (cs !== 201) { console.error("❌ Commit failed:", cd.message); process.exit(1); }
   console.log("✓ Commit:", cd.sha);
 
-  const refUrl = `https://api.github.com/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`;
+  const refUrl = `https://api.render.com/v1/services/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`;
+  const ghRefUrl = `https://api.github.com/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`;
   const r = parentSha
-    ? await api("PATCH", refUrl, { sha: cd.sha, force: true })
+    ? await api("PATCH", ghRefUrl, { sha: cd.sha, force: true })
     : await api("POST", `https://api.github.com/repos/${OWNER}/${REPO}/git/refs`, { ref: `refs/heads/${BRANCH}`, sha: cd.sha });
 
   if (r.status >= 400) { console.error("❌ Ref failed:", r.data.message); process.exit(1); }
-
   console.log(`\n✅ Done! → https://github.com/${OWNER}/${REPO}`);
+  return cd.sha;
 }
 
 main().catch(e => { console.error("❌", e.message); process.exit(1); });

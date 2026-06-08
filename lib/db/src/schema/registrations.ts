@@ -11,6 +11,7 @@ export const registrationsTable = pgTable("registrations", {
   teamName: text("team_name"),
   paymentStatus: text("payment_status", { enum: ["pending", "confirmed"] }).notNull().default("pending"),
   rank: integer("rank"),
+  paymentScreenshot: text("payment_screenshot"),
   registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

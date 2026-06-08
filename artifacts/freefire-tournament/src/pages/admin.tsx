@@ -23,7 +23,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Shield, Plus, Trash2, Edit, CheckCircle2, AlertCircle, Loader2, Users, Key, Trophy } from "lucide-react";
+import { Shield, Plus, Trash2, Edit, CheckCircle2, AlertCircle, Loader2, Users, Key, Trophy, ImageIcon } from "lucide-react";
 
 async function setRegistrationRank(regId: number, rank: number | null) {
   const token = localStorage.getItem("ff_token");
@@ -463,6 +463,15 @@ export function Admin() {
                           <><AlertCircle className="w-3 h-3 mr-1" /> Pending</>
                         )}
                       </Badge>
+                      {reg.paymentScreenshot && (
+                        <button
+                          onClick={() => window.open(reg.paymentScreenshot, "_blank")}
+                          className="flex items-center gap-1 text-xs text-primary border border-primary/40 rounded-lg px-2 py-1 hover:bg-primary/10 transition-colors"
+                          title="Payment screenshot dekho"
+                        >
+                          <ImageIcon className="w-3 h-3" /> Screenshot
+                        </button>
+                      )}
                       {reg.paymentStatus === "pending" && (
                         <Button
                           size="sm"

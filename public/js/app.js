@@ -343,31 +343,65 @@ async function openPaymentModal(matchId, regId, amount) {
 
 async function submitPayment() {
   const utr = document.getElementById('payment-utr').value.trim();
-  const screenshot = document.getElementById('payment-screenshot').files[0];
+  const screenshotInput = document.getElementById('payment-screenshot');
+  const screenshot = screenshotInput.files[0];
   const errEl = document.getElementById('payment-error');
+  const submitBtn = document.getElementById('submit-payment-btn');
+  
   errEl.style.display = 'none';
   
   if (!utr) { errEl.textContent = 'UTR number is required'; errEl.style.display = 'block'; return; }
   if (!screenshot) { errEl.textContent = 'Payment screenshot is required'; errEl.style.display = 'block'; return; }
   
+  // Validate file size (5MB)
+  if (screenshot.size > 5 * 1024 * 1024) {
+    errEl.textContent = 'Screenshot size must be less than 5MB'; 
+    errEl.style.display = 'block'; 
+    return; 
+  }
+  
+  // Validate file type (image only)
+  if (!screenshot.type.startsWith('image/')) {
+    errEl.textContent = 'Please upload a valid image file (JPG, PNG, etc.)'; 
+    errEl.style.display = 'block'; 
+    return; 
+  }
+  
+  // Create FormData for file upload
   const formData = new FormData();
-  formData.append('user_id', currentUser.id);
-  formData.append('match_id', paymentMatchId);
   formData.append('registration_id', paymentRegId);
-  formData.append('amount', document.getElementById('modal-amount').textContent);
   formData.append('utr_number', utr);
   formData.append('screenshot', screenshot);
   
+  // Disable button and show loading state
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Uploading...';
+  
   try {
-    const res = await fetch(API + '/api/payments', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
+    const res = await fetch(API + '/api/payments', { 
+      method: 'POST', 
+      body: formData,
+    });
     
-    alert('Payment submitted successfully! Admin will verify it soon.');
+    const data = await res.json();
+    
+    if (!res.ok) { 
+      errEl.textContent = data.error || 'Failed to submit payment'; 
+      errEl.style.display = 'block'; 
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Payment';
+      return; 
+    }
+    
+    alert('✓ Payment submitted successfully! Admin will verify it within 24 hours.');
     closeModal('payment-modal');
     loadMyMatches();
   } catch (e) {
-    errEl.textContent = 'Network error'; errEl.style.display = 'block';
+    console.error('Payment submission error:', e);
+    errEl.textContent = 'Network error: ' + (e.message || 'Please check your connection and try again'); 
+    errEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Payment';
   }
 }
 
@@ -516,18 +550,17 @@ async function loadAdminPayments() {
       <tr>
         <td>${escHtml(p.username)}</td>
         <td>${escHtml(p.match_title)}</td>
-        <td>₹${p.amount}</td>
-        <td>${escHtml(p.utr_number)}</td>
-        <td>${p.screenshot ? `<img src="${p.screenshot}" class="screenshot-preview" onclick="window.open('${p.screenshot}','_blank')">` : 'N/A'}</td>
-        <td><span class="status-badge ${p.status === 'approved' ? 'status-completed' : p.status === 'rejected' ? 'status-live' : 'status-upcoming'}">${p.status.toUpperCase()}</span></td>
+        <td>${escHtml(p.utr_number || 'N/A')}</td>
+        <td>${p.payment_screenshot ? `<img src="${p.payment_screenshot}" class="screenshot-preview" onclick="window.open('${p.payment_screenshot}','_blank')" style="cursor:pointer;max-width:100px;border-radius:4px;">` : 'N/A'}</td>
+        <td><span class="status-badge ${p.payment_status === 'approved' ? 'status-completed' : p.payment_status === 'rejected' ? 'status-live' : 'status-upcoming'}">${(p.payment_status || 'pending').toUpperCase()}</span></td>
         <td>
-          ${p.status === 'pending' || p.status === 'submitted' ? `
+          ${p.payment_status === 'pending' || p.payment_status === 'submitted' ? `
             <button class="btn btn-success btn-sm" onclick="updatePayment('${p.id}','approved')">Approve</button>
             <button class="btn btn-danger btn-sm" onclick="updatePayment('${p.id}','rejected')">Reject</button>
-          ` : p.status}
+          ` : (p.payment_status || 'pending')}
         </td>
       </tr>
-    `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No payments yet</td></tr>';
+    `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No payments yet</td></tr>';
   } catch (e) {
     console.error('Error loading payments:', e);
   }
@@ -537,7 +570,7 @@ async function updatePayment(id, status) {
   try {
     await fetch(API + '/api/admin/payments/' + id, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ payment_status: status })
     });
     loadAdminPayments();
     alert('Payment ' + status + '!');

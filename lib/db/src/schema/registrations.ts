@@ -9,9 +9,10 @@ export const registrationsTable = pgTable("registrations", {
   matchId: integer("match_id").notNull().references(() => matchesTable.id, { onDelete: "cascade" }),
   playerId: integer("player_id").notNull().references(() => playersTable.id, { onDelete: "cascade" }),
   teamName: text("team_name"),
-  paymentStatus: text("payment_status", { enum: ["pending", "confirmed"] }).notNull().default("pending"),
-  rank: integer("rank"),
+  paymentStatus: text("payment_status", { enum: ["pending", "submitted", "approved", "rejected"] }).notNull().default("pending"),
   paymentScreenshot: text("payment_screenshot"),
+  utrNumber: text("utr_number"),
+  rank: integer("rank"),
   registeredAt: timestamp("registered_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

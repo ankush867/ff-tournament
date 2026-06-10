@@ -218,27 +218,27 @@
 </div>
 
 <!-- MODALS -->
-<!-- Payment Modal -->
-<div class="modal-overlay" id="payment-modal">
+<!-- Entry Fee Payment Modal -->
+<div class="modal-overlay" id="entry-fee-modal">
   <div class="modal">
-    <button class="modal-close" onclick="closeModal('payment-modal')">&times;</button>
-    <h2>💰 Make Payment</h2>
+    <button class="modal-close" onclick="closeModal('entry-fee-modal')">&times;</button>
+    <h2>💰 Pay Entry Fee</h2>
     <div class="qr-container">
       <p>Scan QR or pay to UPI ID:</p>
-      <div class="upi-id-display" id="modal-upi-id">7762067909@ibl</div>
-      <img id="qr-code-img" src="" alt="QR Code">
-      <p style="color:var(--warning);margin-top:10px">Amount: ₹<span id="modal-amount">0</span></p>
+      <div class="upi-id-display" id="entry-fee-upi-id">7762067909@ibl</div>
+      <img id="entry-fee-qr-code" src="" alt="QR Code">
+      <p style="color:var(--warning);margin-top:10px">Amount: ₹<span id="entry-fee-amount">0</span></p>
     </div>
     <div class="form-group">
       <label>UTR Number *</label>
-      <input type="text" id="payment-utr" class="form-control" placeholder="Enter UTR/Transaction ID">
+      <input type="text" id="entry-fee-utr" class="form-control" placeholder="Enter UTR/Transaction ID">
     </div>
     <div class="form-group">
       <label>Payment Screenshot *</label>
-      <input type="file" id="payment-screenshot" class="form-control" accept="image/*">
+      <input type="file" id="entry-fee-screenshot" class="form-control" accept="image/*">
     </div>
-    <div id="payment-error" class="alert alert-error" style="display:none"></div>
-    <button class="btn btn-primary btn-block" onclick="submitPayment()">Submit Payment</button>
+    <div id="entry-fee-error" class="alert alert-error" style="display:none"></div>
+    <button class="btn btn-primary btn-block" id="submit-entry-fee-btn" onclick="submitEntryFeePayment()">Submit Payment & Register</button>
   </div>
 </div>
 
